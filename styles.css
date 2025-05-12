@@ -1,0 +1,81 @@
+body {
+    background-color: black;
+    color: #00FF00;
+    font-family: 'Courier New', monospace;
+    margin: 0;
+    padding: 20px;
+}
+
+#terminal {
+    width: 100%;
+    height: 90vh;
+    overflow-y: auto;
+}
+
+#output {
+    white-space: pre-wrap;
+}
+
+#input-line {
+    display: flex;
+}
+
+input {
+    background: transparent;
+    color: #00FF00;
+    border: none;
+    width: 100%;
+    outline: none;
+    font-family: inherit;
+}
+
+/* Modal styles */
+.modal {
+    position: fixed;
+    top: 10%;
+    left: 10%;
+    width: 80%;
+    height: 70%;
+    background-color: #000000f2;
+    color: #00ff00;
+    border: 2px solid #00ff00;
+    font-family: 'Courier New', monospace;
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    box-shadow: 0 0 30px #00ff00;
+}
+
+.modal-header {
+    padding: 5px 10px;
+    background-color: #001100;
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    border-bottom: 1px solid #00ff00;
+}
+
+.modal-content {
+    padding: 10px;
+    overflow-y: auto;
+    flex-grow: 1;
+    white-space: pre-wrap;
+}
+
+.modal-close {
+    cursor: pointer;
+    color: red;
+}
+
+.hidden {
+    display: none;
+}
+
+input::after {
+    content: "_";
+    animation: blink 1s step-start infinite;
+}
+
+@keyframes blink {
+    50% { opacity: 0; }
+}
