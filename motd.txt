@@ -1,12 +1,3 @@
-[BOOTING TERMINAL...]
-[CONNECTING TO NODE B7F3...]
-[STREAMING MOTD >>>]
-
-WELCOME TO DEFIANTNET
-
->> Update 2087.12.04
-- Added resistance logs to /docs
-- Sector 7 map unlocked in /maps
-- Added 'manifesto.html' and 'hideout.jpg'
-
-Type 'help' for available commands.
+git add .
+git commit -m "Update MOTD and file structure"
+git push
