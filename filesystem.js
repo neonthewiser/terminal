@@ -1,4 +1,4 @@
-const fileSystem = {
+const filesystem = {
     "~": {
         "corps": {
             "corpos.dat": "content/corps/corporations.html",
