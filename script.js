@@ -5,7 +5,7 @@ const modalContent = document.getElementById('modal-content');
 const modalTitle = document.getElementById('modal-title');
 const promptPath = document.getElementById('prompt-path');
 
-let cwd = fileSystem["~"];
+let cwd = filesystem["~"];
 let pathStack = ["~"];
 
 const MOTD = [
@@ -106,7 +106,7 @@ function runCommand(inputText) {
     case "cd ..":
       if (pathStack.length > 1) {
         pathStack.pop();
-        cwd = pathStack.reduce((a, d) => a[d], fileSystem);
+        cwd = pathStack.reduce((a, d) => a[d], filesystem);
       } else {
         printLines(["Already at root."]);
       }
