@@ -174,7 +174,7 @@ function markdownToHtml(md) {
 }
 
 // Load file list at startup, then boot
-fetch('/filelist.json')
+fetch('filelist.json')
   .then(r => {
     if (!r.ok) throw new Error("No filelist.json found in content/");
     return r.json();
