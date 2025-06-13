@@ -5,7 +5,8 @@ const modalContent = document.getElementById('modal-content');
 const modalTitle = document.getElementById('modal-title');
 const promptPath = document.getElementById('prompt-path');
 
-let cwd = fileSystem["~"];
+let FILE_LIST = [];
+let fileListLoaded = false;
 let pathStack = ["~"];
 
 const MOTD = [
@@ -80,43 +81,29 @@ function runCommand(inputText) {
       printLines([
         "Available commands:",
         "help         Show this help",
-        "ls           List directory",
-        "cd [dir]     Change directory",
-        "back         Go back",
-        "open [file]  Open a file",
+        "ls           List all files",
+        "open [file]  Open a file (case-sensitive, use path for subdirs)",
         "clear        Clear the terminal"
       ]);
       break;
 
     case "ls":
-      printLines(Object.keys(cwd));
-      break;
-
-    case "cd":
-      if (arg && cwd[arg] && typeof cwd[arg] === 'object') {
-        cwd = cwd[arg];
-        pathStack.push(arg);
-      } else {
-        printLines(["No such directory."]);
+      if (!fileListLoaded) {
+        printLines(["Loading file list, please wait..."]);
+        return;
       }
-      break;
-
-    case "back":
-    case "cd..":
-    case "cd ..":
-      if (pathStack.length > 1) {
-        pathStack.pop();
-        cwd = pathStack.reduce((a, d) => a[d], fileSystem);
-      } else {
-        printLines(["Already at root."]);
-      }
+      printLines(FILE_LIST.length ? FILE_LIST : ["(no files found)"]);
       break;
 
     case "open":
-      if (cwd[arg]) {
-        openModal(arg, cwd[arg]);
+      if (!fileListLoaded) {
+        printLines(["File list not loaded yet."]);
+        return;
+      }
+      if (FILE_LIST.includes(arg)) {
+        openModal(arg);
       } else {
-        printLines(["File not found."]);
+        printLines(["File not found. Use exact path/filename."]);
       }
       break;
 
@@ -131,14 +118,32 @@ function runCommand(inputText) {
   updatePrompt();
 }
 
-function openModal(title, path) {
-  modalTitle.textContent = title;
+function openModal(filepath) {
+  modalTitle.textContent = filepath;
   modal.style.display = "flex";
+  const ext = filepath.split('.').pop().toLowerCase();
+  const fileUrl = 'content/' + filepath;
 
-  if (path.endsWith(".html")) {
-    modalContent.innerHTML = `<iframe src="${path}"></iframe>`;
-  } else if (/\.(jpg|jpeg|png|gif)$/i.test(path)) {
-    modalContent.innerHTML = `<img src="${path}" alt="${title}">`;
+  if (/\.(jpg|jpeg|png|gif|webp)$/i.test(filepath)) {
+    modalContent.innerHTML = `<img src="${fileUrl}" alt="${filepath}">`;
+  } else if (/\.(html|htm)$/i.test(filepath)) {
+    modalContent.innerHTML = `<iframe src="${fileUrl}"></iframe>`;
+  } else if (/\.(md|txt|json|js|css)$/i.test(filepath)) {
+    fetch(fileUrl)
+      .then(r => {
+        if (!r.ok) throw new Error('File not found.');
+        return r.text();
+      })
+      .then(text => {
+        if (ext === 'md') {
+          modalContent.innerHTML = `<pre style="white-space: pre-wrap;">${markdownToHtml(text)}</pre>`;
+        } else {
+          modalContent.innerHTML = `<pre style="white-space: pre-wrap;">${escapeHtml(text)}</pre>`;
+        }
+      })
+      .catch(() => {
+        modalContent.innerHTML = `<div style="padding:2em;">File not found or cannot be loaded.</div>`;
+      });
   } else {
     modalContent.innerHTML = `<pre>Unsupported file type.</pre>`;
   }
@@ -149,4 +154,39 @@ function closeModal() {
   input.focus();
 }
 
-boot();
+// Basic HTML escaping for .txt and code files
+function escapeHtml(unsafe) {
+  return unsafe.replace(/[&<>"']/g, function(m) {
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m];
+  });
+}
+
+// Simple Markdown to HTML (very basic)
+function markdownToHtml(md) {
+  return md
+    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+    .replace(/\*\*(.*?)\*\*/gim, '<b>$1</b>')
+    .replace(/\*(.*?)\*/gim, '<i>$1</i>')
+    .replace(/\[(.*?)\]\((.*?)\)/gim, "<a href='$2' target='_blank'>$1</a>")
+    .replace(/\n$/gim, '<br>');
+}
+
+// Load file list at startup, then boot
+fetch('/filelist.json')
+  .then(r => {
+    if (!r.ok) throw new Error("No filelist.json found in content/");
+    return r.json();
+  })
+  .then(list => {
+    FILE_LIST = list;
+    fileListLoaded = true;
+    boot();
+  })
+  .catch(err => {
+    FILE_LIST = [];
+    fileListLoaded = false;
+    printLines(["Failed to load filelist.json. Terminal won't work."]);
+    updatePrompt();
+  });

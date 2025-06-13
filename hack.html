@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hacking Minigame - Fallout Style</title>
+<style>
+    body {
+      background: #1a180f;
+      color: #FFBF00;
+      font-family: 'Fira Mono', 'Consolas', monospace;
+      margin: 0; padding: 0;
+    }
+    .terminal {
+      background: #191400;
+      border: 2.5px solid #FFBF00;
+      border-radius: 10px;
+      padding: 30px 14px 22px 18px;
+      max-width: 700px;
+      margin: 46px auto 0 auto;
+      min-height: 500px;
+      box-shadow: 0 0 32px #FFBF0035;
+      font-size: 1.1em;
+      letter-spacing: 1.1px;
+    }
+    h1 {
+      text-align: center;
+      letter-spacing: 1.5px;
+      color: #FFBF00;
+      margin: 0 0 22px 0;
+      font-size: 1.5em;
+    }
+    .memory {
+      font-family: inherit;
+      background: #191202;
+      border: 1.5px solid #FFBF00;
+      color: #FFBF00;
+      font-size: 1em;
+      padding: 18px 9px 15px 9px;
+      border-radius: 7px;
+      margin-bottom: 18px;
+      white-space: pre;
+      overflow-x: auto;
+      word-break: break-all;
+      line-height: 1.36em;
+      user-select: text;
+      cursor: pointer;
+    }
+    .wordbtn {
+      color: #191202;
+      background: #FFBF00;
+      padding: 0 2px 0 2px;
+      border-radius: 2.5px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: color 0.15s, background 0.12s;
+    }
+    .wordbtn:hover, .wordbtn:focus {
+      color: #FFBF00;
+      background: #191202;
+      outline: 1.5px dashed #FFBF00;
+    }
+    .feedback, .lastguess {
+      margin-top: 13px;
+      min-height: 30px;
+      text-align: left;
+      font-size: 1.08em;
+    }
+    .success { color: #00e86d; font-weight: bold; }
+    .fail { color: #ff2222; font-weight: bold; }
+    .yellow { color: #FFBF00; }
+    .center { text-align: center; }
+    .trycount { margin-top: 3px; }
+    ::selection { background: #FFBF0040; }
+</style>
+</head>
+<body>
+<div class="terminal">
+  <h1>== HACKING TERMINAL ==</h1>
+  <div id="game"></div>
+</div>
+<script>
+// --- SETTINGS ---
+const COLOR = '#FFBF00';
+const GARBAGE_CHARS = '~!@#$%^&*()_+-={}[]|;:,.<>?/';
+const WORDS = [
+  "ROUTINE","PROCESS","CAPTURE","PROTOCOL","MACHINE","FISSION","ENCRYPT",
+  "NETWORK","FACTORY","MONITOR","CANYONS","CONTROL","VIRTUAL","CIRCUIT",
+  "ARCHIVE","VACCINE","REACTOR","DEFENCE","MISSION","HACKING","GRADING",
+  "STATION","PROJECT","SILENCE","FOREIGN"
+];
+// Utility: Matching
+function numMatchingLetters(w1, w2) {
+    let matches = 0;
+    for (let i = 0; i < w1.length; i++) if (w1[i] === w2[i]) matches++;
+    return matches;
+}
+function getRandomWords(arr, n, blocklist=[]) {
+    let copy = arr.filter(x => !blocklist.includes(x));
+    let chosen = [];
+    while (chosen.length < n && copy.length) {
+        let pick = copy.splice(Math.floor(Math.random()*copy.length),1)[0];
+        chosen.push(pick);
+    }
+    return chosen;
+}
+// Fallout logic: pick secret + wordlist with similar/varied matching
+function getWordsForGame() {
+    let secret = WORDS[Math.floor(Math.random()*WORDS.length)];
+    let words = [secret];
+    let attempts = 0;
+    while (words.length < 3 && attempts < 300) {
+        let w = getRandomWords(WORDS,1,words)[0];
+        if (numMatchingLetters(secret,w) === 0) words.push(w);
+        attempts++;
+    }
+    attempts = 0;
+    while (words.length < 5 && attempts < 300) {
+        let w = getRandomWords(WORDS,1,words)[0];
+        if (numMatchingLetters(secret,w) === 3) words.push(w);
+        attempts++;
+    }
+    attempts = 0;
+    while (words.length < 12 && attempts < 600) {
+        let w = getRandomWords(WORDS,1,words)[0];
+        if (numMatchingLetters(secret,w) !== 0) words.push(w);
+        attempts++;
+    }
+    while (words.length < 12) words.push(getRandomWords(WORDS,1,words)[0]);
+    return {secret, words: words.sort()};
+}
+// Rendu "mémoire" : chaque mot devient <span class="wordbtn">WORD</span>
+function highlightWordsInLine(line, wordlist) {
+    let mod = line;
+    for (let word of wordlist) {
+        // Remplace seulement la première occurrence, sans overlap
+        let i = mod.indexOf(word);
+        if (i !== -1) {
+            mod = mod.substring(0,i) +
+              `<span class="wordbtn" data-word="${word}">${word}</span>` +
+              mod.substring(i+word.length);
+        }
+    }
+    return mod;
+}
+function getComputerMemoryString(words) {
+    let linesWithWords = [];
+    while (linesWithWords.length < words.length) {
+        let pick = Math.floor(Math.random() * 32);
+        if (!linesWithWords.includes(pick)) linesWithWords.push(pick);
+    }
+    let memoryAddress = 16 * Math.floor(Math.random() * 3000);
+    let memory = [];
+    let wordIdx = 0;
+    for (let i = 0; i < 16; i++) {
+        let left = '', right = '';
+        for (let j = 0; j < 16; j++) {
+            left += GARBAGE_CHARS[Math.floor(Math.random()*GARBAGE_CHARS.length)];
+            right += GARBAGE_CHARS[Math.floor(Math.random()*GARBAGE_CHARS.length)];
+        }
+        if (linesWithWords.includes(i)) {
+            let insert = Math.floor(Math.random()*9);
+            left = left.slice(0,insert) + words[wordIdx] + left.slice(insert+7);
+            wordIdx++;
+        }
+        if (linesWithWords.includes(i+16) && wordIdx < words.length) {
+            let insert = Math.floor(Math.random()*9);
+            right = right.slice(0,insert) + words[wordIdx] + right.slice(insert+7);
+            wordIdx++;
+        }
+        let lAddr = '0x'+(memoryAddress+i*16).toString(16).padStart(4,'0');
+        let rAddr = '0x'+(memoryAddress+16*16+i*16).toString(16).padStart(4,'0');
+        memory.push({
+          left: left, right: right, lAddr: lAddr, rAddr: rAddr
+        });
+    }
+    // Ajoute les balises sur les mots
+    let lines = memory.map(obj => {
+        return `${obj.lAddr}  ${highlightWordsInLine(obj.left, words)}    ${obj.rAddr}  ${highlightWordsInLine(obj.right, words)}`;
+    });
+    return lines.join('\n');
+}
+
+// --- GAME LOGIC ---
+function startGame() {
+    const game = getWordsForGame();
+    let tries = 4;
+    let finished = false;
+    let lastGuess = "";
+    // Mémoire interactive
+    document.getElementById("game").innerHTML = `
+    <div class="memory" id="memory">${getComputerMemoryString(game.words)}</div>
+    <div class="lastguess" id="lastguess">&nbsp;</div>
+    <div class="trycount" id="trycount">Attempts left: <span id="tries">${tries}</span></div>
+    <div id="feedback" class="feedback"></div>
+    <div class="center" style="margin-top:20px;"><button onclick="window.location.reload()">New Game</button></div>
+    `;
+    // Écoute tous les .wordbtn
+    function bindClicks() {
+      document.querySelectorAll('.wordbtn').forEach(btn => {
+        btn.onclick = function(e) {
+          if (finished) return;
+          let guess = btn.getAttribute("data-word");
+          lastGuess = guess;
+          document.getElementById('lastguess').innerHTML = `Last selected: <b>${guess}</b>`;
+          if (guess === game.secret) {
+              finished = true;
+              document.getElementById('feedback').innerHTML = `<span class="success">ACCESS GRANTED</span>`;
+              document.getElementById('tries').innerText = tries;
+              document.querySelectorAll('.wordbtn').forEach(wb=>{wb.style.pointerEvents="none"; wb.style.background="#00e86d"; wb.style.color="#191202";});
+              return;
+          }
+          tries--;
+          if (tries <= 0) {
+              finished = true;
+              document.getElementById('feedback').innerHTML = `<span class="fail">LOCKOUT. Password was <b>${game.secret}</b></span>`;
+              document.getElementById('tries').innerText = 0;
+              document.querySelectorAll('.wordbtn').forEach(wb=>{wb.style.pointerEvents="none";});
+              return;
+          }
+          let matches = numMatchingLetters(game.secret, guess);
+          document.getElementById('feedback').innerHTML =
+              `<span class="yellow">Access Denied: ${matches}/7 correct letters.</span>`;
+          document.getElementById('tries').innerText = tries;
+        };
+      });
+    }
+    setTimeout(bindClicks, 60);
+}
+startGame();
+</script>
+</body>
+</html>
